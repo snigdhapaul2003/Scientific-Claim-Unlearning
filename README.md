@@ -2,6 +2,11 @@
 
 Language models (LMs) are pre-trained on static scientific corpora, while scientific knowledge is dynamic and self-correcting. Scientific claims internalized by these models, can be retracted, falsified or revised later by the downstream studies, risking the propagation of incorrect information in scientific research. This motivates the need for LMs to selectively suppress obsolete scientific claims. Machine unlearning can be a natural choice as a solution, preserving overall model utility. Prior work focuses on instance-level forgetting, but scientific claims pose unique challenges due to their structured, multi-faceted, and evolving nature. We introduce a new task of Scientific Claim Unlearning and construct a benchmark SciUnlearn. To evaluate the task, we further demonstrate that existing unlearning methods fail to remove claim-level knowledge, exhibiting surface-level suppression. These findings highlight that scientific claim unlearning is fundamentally more challenging than standard fact unlearning, motivating the need for methods tailored to structured knowledge removal.
 
+## Benchmark Dataset
+
+General paper dataset - `Experiments/data`
+Retracted paper dataset - `Experiments/data_retracted`
+
 ## Pipeline
 
 Pipeline for building scientific question-answer datasets and running unlearning experiments.
