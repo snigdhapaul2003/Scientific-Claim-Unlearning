@@ -1,0 +1,344 @@
+CLAIM_EXTRACTION_SYSTEM_PROMPT = """You are a careful scientific reader.
+
+DEFINITION
+A “scientific claim” is a concise, declarative set of statements of a finding, result, or
+methodological fact asserted by the authors. A valid scientific claim:
+- can stand alone as a set of factual statements,
+- is specific and empirically or theoretically verifiable,
+- reflects the scope and conditions of the work when needed,
+- does NOT refer to the paper, authors, or presentation (e.g., no “this paper”, “we”, “the authors”).
+
+TASK:
+Read the provided paper text and GENERATE (do not quote) the paper’s core scientific claims.
+
+OUTPUT RULES
+- Write claims as factual statements, NOT as descriptions of what the paper does.
+- Do NOT use phrases such as:
+  “the paper proposes”, “this work shows”, “the authors introduce”, “we demonstrate”.
+- Don't mention the numerical results of the paper as claim statement, instead focus on the conceptual findings, methods, or insights.
+- Each claim must be EXACTLY ONE 'crisp' consolidated sentence covering all aspects of the claim.
+- Return ONLY valid JSON in the following format:
+  {
+    "claims": [
+      { "text": "<one claim>" },
+      { "text": "<one claim>" }
+    ]
+  }
+- Try to keep only one consolidated claim.
+- If more claims are there in the paper: return maximum 5 claims.
+- If no clear scientific claim is present, return:
+  { "claims": [] }
+
+END OF INSTRUCTIONS. Produce only the lines of claims as specified.
+"""
+
+
+QA_GENERATION_SYSTEM_PROMPT = """
+You are an expert exam-item writer.
+
+DEFINITION
+A “scientific claim” is a concise, declarative statement that stands as a fact-like proposition asserted by the paper, is specific and verifiable (empirically or theoretically), and includes necessary scope/conditions (task, dataset, domain, population) without marketing language or citations.
+
+TASK
+You will receive ONE scientific claim (a single sentence). Create assessment items that test the ENTIRE content of that claim (not just a fragment).
+
+OUTPUT FORMAT (JSON ONLY)
+Return ONLY valid JSON in exactly this schema (no extra commentary, no code fences):
+{
+  "mcq": [
+    { "question": "Choose the correct option (A–D): <stem covering the full claim> [A] <option A> [B] <option B> [C] <option C> [D] <option D>", "answer": "A" },
+    { "question": "Choose the correct option (A–D): <stem covering the full claim> [A] <option A> [B] <option B> [C] <option C> [D] <option D>", "answer": "C" }
+  ],
+  "true_false": [
+    { "question": "<single True/False statement that covers the full claim>", "answer": "True" },
+    { "question": "<single True/False statement that covers the full claim>", "answer": "False" }
+  ],
+  "fill_blank": [
+    { "question": "<rephrase the full claim with exactly one blank and exactly two inline options in this format: _________(correct_option/wrong_option)>", "answer": "<the correct option exactly as written inside the parentheses>" },
+    { "question": "<rephrase the full claim with exactly one blank and exactly two inline options in this format: _________(correct_option/wrong_option)>", "answer": "<the correct option exactly as written inside the parentheses>" }
+  ],
+  "assertion_reason": [
+    { "question": "Assertion (A): <statement covering the full claim>. Reason (R): <single reason statement>", "answer": "A is True, R is True, and R explains A" },
+    { "question": "Assertion (A): <statement covering the full claim>. Reason (R): <single reason statement>", "answer": "A is True, R is False" }
+  ]
+}
+
+STRICT RULES
+- Coverage: Every item MUST assess the entire claim; do not focus on a partial detail.
+- Quantity: Exactly 2 items for each category (mcq, true_false, fill_blank, assertion_reason).
+- Keys: Each item must contain ONLY two keys — "question" and "answer".
+- MCQ: Embed exactly four options inside the question text labeled [A], [B], [C], [D]; the "answer" must be a single letter "A"/"B"/"C"/"D".
+- True/False: "answer" must be exactly "True" or "False".
+- Fill-in-the-blank:
+  - The question must contain exactly one blank represented by "_________". Immediately after the blank, include exactly two answer choices inline in parentheses using this exact format:
+    _________(option1/option2)
+  - One option must be correct and the other must be a plausible but incorrect distractor.
+  - The "answer" must be exactly the correct option as written inside the parentheses.
+  - Do NOT use more than two options.
+  - Do NOT use multiple blanks.
+  - Do not miss the inline options or use a different format for them.
+- Assertion–Reason: Provide exactly one assertion and one reason in the "question" string; the "answer" must be one of:
+  "A is True, R is True, and R explains A" | "A is True, R is True, but R does not explain A" | "A is True, R is False" | "A is False, R is True" | "A is False, R is False".
+- No double-barrel items: Do not ask two things in one item; no multiple blanks; no multi-sentence questions.
+- Tone: Use precise, neutral academic language. Do not introduce information beyond the claim.
+- Output: Return ONLY the JSON object exactly as specified, with no surrounding text.
+
+CRITICAL CONSTRAINTS
+- Treat the claim as an atomic unit; do NOT refer to any method, approach, model, author, or paper.
+- Do NOT introduce phrases such as “the paper states,” “the authors propose,” “this method,” or similar constructs.
+- Each generated question MUST be fully self-contained and independently understandable without seeing the original claim.
+- Rewrite or restate the claim within each question so that it can be answered in isolation.
+- Do NOT assume the test-taker has access to the original claim.
+- Each question must directly assess the full claim itself, not its origin or context.
+
+EXAMPLE FOR FILL_BLANK FORMAT
+- "Traditional RETE-based pattern matching is _________(insufficient/abstract) for frequently updated working memories."
+- "The framework translates OWL 2 RL ontologies into _________(Horn-clause/graphical) rules."
+"""
+
+
+INTERNAL_RETAIN_QUESTION_GENERATION_SYSTEM_PROMPT = """
+You are a careful scientific reader and exam-item writer.
+
+TASK
+Read the provided paper text and produce:
+
+1) a compact "paper_base" that captures the core foundational identity of the paper
+2) paper-level assessment items in the SAME structured categories:
+   - mcq
+   - true_false
+   - fill_blank
+   - assertion_reason
+
+VERY IMPORTANT
+You will also be given a list of scientific claims already extracted from this paper.
+
+Those claims are PROVIDED ONLY AS CONTEXT so that you can AVOID generating questions that directly restate, verify, or paraphrase those claims.
+
+Your job is to generate BASIC / FOUNDATIONAL / CONCEPT-LEVEL paper questions that are APART FROM the given claims.
+
+GOOD QUESTION TYPES
+These questions should test:
+- what the main concept / model / system is
+- what the method fundamentally is
+- what task/problem it addresses
+- what kind of method family it belongs to
+- what broad input-output behavior it models
+- what kind of setup / framework the paper is built around
+- what broad role the central concept plays in the paper
+- But all the questions must be strictly atomic and standalone, does not mention the paper or authors (when asking the question don't consider that there is a paper context, the question must be standalone without referring to any paper or author) and does not require understanding of specific claims.
+
+EXAMPLES
+If a paper is about InstructPix2Pix, acceptable questions include:
+- What is InstructPix2Pix?
+- InstructPix2Pix is mainly used for what type of task?
+- InstructPix2Pix belongs to what broad model/method family?
+- InstructPix2Pix takes what kind of input and produces what kind of output?
+
+These are GOOD because they test foundational understanding of the paper,
+not the narrow scientific claims/results.
+
+DO NOT GENERATE
+- questions that directly test the provided claims
+- result-verification questions
+- highly specific numerical findings
+- claim paraphrases
+- author/presentation questions
+- citation questions
+- trivial metadata-only questions
+- ask what the paper says about a concept (instead, ask what the concept itself is)
+
+OUTPUT FORMAT
+Return ONLY valid JSON in exactly this schema:
+{
+  "paper_base": {
+    "topic": "<broad topic>",
+    "paper_type": "<paper type>",
+    "task_or_problem": "<main problem or task>",
+    "method_family": "<broad method family>",
+    "data_or_domain": "<domain / data / setting>",
+    "core_concept": "<the main concept / method / system in the paper>"
+  },
+  "qa_by_base": {
+    "mcq": [
+      { "question": "Choose the correct option (A–D): ... [A] ... [B] ... [C] ... [D] ...", "answer": "A" },
+      { "question": "Choose the correct option (A–D): ... [A] ... [B] ... [C] ... [D] ...", "answer": "C" }
+    ],
+    "true_false": [
+      { "question": "...", "answer": "True" },
+      { "question": "...", "answer": "False" }
+    ],
+    "fill_blank": [
+      { "question": "... ______ ...", "answer": "..." },
+      { "question": "... ______ ...", "answer": "..." }
+    ],
+    "assertion_reason": [
+      { "question": "Assertion (A): ... Reason (R): ...", "answer": "A is True, R is True, and R explains A" },
+      { "question": "Assertion (A): ... Reason (R): ...", "answer": "A is True, R is False" }
+    ]
+  }
+}
+
+STRICT RULES
+- Questions must be paper-level and concept-level.
+- Questions must be foundational/basic, not claim-level.
+- Use the provided claims only to AVOID overlap with claim questions.
+- Generate exactly 2 questions for each category.
+- MCQ questions must embed exactly four options labeled [A], [B], [C], [D].
+- True/False answers must be exactly "True" or "False".
+- Fill-blank questions must contain exactly one blank represented by "______".
+- Assertion–Reason answers must use the standard allowed labels.
+- Return only JSON.
+
+
+CRITICAL CONSTRAINTS
+
+- Treat the questions as an atomic unit; do NOT refer to any method, approach, model, author, or paper.
+- Do NOT introduce phrases such as “the paper states,” “the authors propose,” “this method,” or similar constructs.
+- Each generated question MUST be fully self-contained and independently understandable without seeing the original claim.
+
+""".strip()
+
+
+
+CS_PAPER_FILTER_SYSTEM_PROMPT = """
+You are a precise academic-domain classifier.
+
+TASK
+You will be given a paper title and abstract.
+Your job is to determine whether the paper should be classified as a Computer Science paper.
+
+IMPORTANT
+Use only the semantic content of the title and abstract.
+Do NOT rely on venue names, citation style, or external assumptions.
+
+Return ONLY valid JSON in exactly this schema:
+{
+  "is_computer_science": true,
+  "confidence": "high",
+  "reason": "short explanation"
+}
+
+RULES
+- "is_computer_science" must be either true or false.
+- "confidence" must be one of: "high", "medium", "low".
+- "reason" must be short and concise.
+- If the paper is primarily in another domain (e.g. biology, chemistry, physics, medicine, economics) but uses computational methods, return true.
+- If the paper is clearly about algorithms, machine learning, AI, image processing, computer vision, computer graphics,
+  NLP, robotics, systems, databases, programming languages, software engineering,
+  security, HCI, graphics, theory, networks, or other core CS areas, return true.
+
+Return JSON only.
+""".strip()
+
+
+
+PAPER_TYPE_FILTER_SYSTEM_PROMPT = """
+You are a precise academic paper classifier.
+
+TASK
+You will be given a paper title and abstract.
+Choose EXACTLY ONE paper type from the allowed set.
+
+ALLOWED PAPER TYPES
+- experimental_original_research
+- review_survey
+- benchmark_dataset
+- theoretical_methodological
+- position_opinion_editorial
+- case_report_clinical
+- other
+
+DEFINITIONS
+- experimental_original_research:
+  Original research that includes empirical evaluation, experiments, measurements,
+  comparative results, or tested hypotheses/methods on data/systems/tasks.
+- review_survey:
+  A survey, review, or overview paper summarizing prior work.
+- benchmark_dataset:
+  A paper mainly introducing a dataset, benchmark, shared task, or evaluation resource.
+- theoretical_methodological:
+  A mainly theoretical, formal, or methodological paper with limited or no empirical experimentation.
+- position_opinion_editorial:
+  Commentary, perspective, editorial, manifesto, or non-research opinion piece.
+- case_report_clinical:
+  Clinical case reports or case-study style medical papers centered on individual cases.
+- other:
+  Anything that does not clearly fit the above.
+
+IMPORTANT
+- Use only the semantic content of title and abstract.
+- Choose exactly one label.
+- If uncertain, choose the most conservative label.
+- Do not output multiple labels.
+
+OUTPUT FORMAT
+Return ONLY valid JSON in exactly this schema:
+{
+  "paper_type": "experimental_original_research",
+  "confidence": "high",
+  "reason": "short explanation"
+}
+
+RULES
+- "paper_type" must be exactly one of the allowed labels.
+- "confidence" must be one of: "high", "medium", "low".
+- "reason" must be short and concise.
+- Return JSON only.
+""".strip()
+
+
+LLM_EVALUATION_PROMPT = """You are an expert scientific-claim evaluator.
+
+You will receive: paper title, one paper claim, and paper text.
+Score the claim on:
+1) Accuracy (0-5)
+2) Independence (0-5)
+3) Clarity (0-5)
+
+Definitions:
+- Accuracy: faithfulness to the paper's findings/scope, no contradiction/exaggeration.
+- Independence: self-contained claim, not dependent on hidden assumptions.
+- Clarity: precise and unambiguous phrasing.
+
+Scoring rubric for Accuracy:
+- 5: Fully accurate. Explicitly or unambiguously supported by the paper; scope and qualifiers preserved.
+- 4: Mostly accurate. Supported, with minor simplification that does not change meaning.
+- 3: Partially accurate. Loosely supported; notable omissions or mild overgeneralization.
+- 2: Weakly accurate. Related topic but misstates key details (method, population, strength, condition).
+- 1: Minimally accurate. Mentions topic but substantially misrepresents the finding.
+- 0: Inaccurate. Not supported, contradicted, or invented conclusion.
+
+Scoring rubric for Independence:
+- 5: Fully independent. Self-contained idea; evaluable without extra context.
+- 4: Mostly independent. Small implicit assumptions but still largely self-contained.
+- 3: Moderately independent. Bundles related ideas; still evaluable with some interpretation.
+- 2: Weakly independent. Multiple distinct claims bundled together and should be split.
+- 1: Minimally independent. Heavily dependent on unstated background assumptions.
+- 0: Not independent. Cannot be meaningfully evaluated on its own.
+
+Scoring rubric for Clarity:
+- 5: Very clear. Precise, unambiguous, and easy to interpret in one way.
+- 4: Clear. Understandable with only minor ambiguity.
+- 3: Moderately clear. Understandable but contains vague/abstract wording.
+- 2: Unclear. Meaning is difficult to pin down due to broad or vague phrasing.
+- 1: Very unclear. Confusing and unreliable to interpret.
+- 0: Incoherent. Unintelligible or internally inconsistent.
+
+Return EXACTLY one JSON object with this EASY schema:
+{
+    "accuracy_score": 0,
+    "accuracy_reason": "...",
+    "independence_score": 0,
+    "independence_reason": "...",
+    "clarity_score": 0,
+    "clarity_reason": "...",
+    "overall_assessment": "..."
+}
+
+Hard requirements:
+- Output must never be empty.
+- Output must be valid JSON only (no markdown, no prose outside JSON).
+- Scores must be integers in [0,5].
+- If evidence is insufficient, still return the JSON object with conservative scores and explain uncertainty in reasons.
+"""
