@@ -1,5 +1,5 @@
 {
-  "export_dir": "common_exports",
+  "export_dir": "common_exports_new_2",
   "inputs": {
     "forget": "forget_common.json",
     "retain_external": "retain_external_common.json",
@@ -8,33 +8,33 @@
   "datasets": [
     {
       "dataset": "forget_sc_1",
-      "row_count": 152,
-      "output_jsonl": "common_exports\\forget_sc_1.jsonl",
-      "output_parquet": "common_exports\\forget_sc_1.parquet"
+      "row_count": 390,
+      "output_jsonl": "common_exports_new_2\\forget_sc_1.jsonl",
+      "output_parquet": "common_exports_new_2\\forget_sc_1.parquet"
     },
     {
       "dataset": "forget_sc_2",
-      "row_count": 152,
-      "output_jsonl": "common_exports\\forget_sc_2.jsonl",
-      "output_parquet": "common_exports\\forget_sc_2.parquet"
+      "row_count": 390,
+      "output_jsonl": "common_exports_new_2\\forget_sc_2.jsonl",
+      "output_parquet": "common_exports_new_2\\forget_sc_2.parquet"
     },
     {
       "dataset": "retain_external_sc",
-      "row_count": 408,
-      "output_jsonl": "common_exports\\retain_external_sc.jsonl",
-      "output_parquet": "common_exports\\retain_external_sc.parquet"
+      "row_count": 884,
+      "output_jsonl": "common_exports_new_2\\retain_external_sc.jsonl",
+      "output_parquet": "common_exports_new_2\\retain_external_sc.parquet"
     },
     {
       "dataset": "retain_internal_sc",
-      "row_count": 248,
-      "output_jsonl": "common_exports\\retain_internal_sc.jsonl",
-      "output_parquet": "common_exports\\retain_internal_sc.parquet"
+      "row_count": 671,
+      "output_jsonl": "common_exports_new_2\\retain_internal_sc.jsonl",
+      "output_parquet": "common_exports_new_2\\retain_internal_sc.parquet"
     },
     {
       "dataset": "retain_sc",
-      "row_count": 656,
-      "output_jsonl": "common_exports\\retain_sc.jsonl",
-      "output_parquet": "common_exports\\retain_sc.parquet"
+      "row_count": 1555,
+      "output_jsonl": "common_exports_new_2\\retain_sc.jsonl",
+      "output_parquet": "common_exports_new_2\\retain_sc.parquet"
     }
   ]
 }
