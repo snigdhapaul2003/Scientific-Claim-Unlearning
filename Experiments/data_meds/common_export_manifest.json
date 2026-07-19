@@ -1,0 +1,40 @@
+{
+  "export_dir": "common_exports_4_medicine",
+  "inputs": {
+    "forget": "forget_common_4.json",
+    "retain_external": "retain_external_common_4.json",
+    "retain_internal": "retain_internal_common_4.json"
+  },
+  "datasets": [
+    {
+      "dataset": "forget_sc_1",
+      "row_count": 285,
+      "output_jsonl": "common_exports_4_medicine\\forget_sc_1.jsonl",
+      "output_parquet": "common_exports_4_medicine\\forget_sc_1.parquet"
+    },
+    {
+      "dataset": "forget_sc_2",
+      "row_count": 285,
+      "output_jsonl": "common_exports_4_medicine\\forget_sc_2.jsonl",
+      "output_parquet": "common_exports_4_medicine\\forget_sc_2.parquet"
+    },
+    {
+      "dataset": "retain_external_sc",
+      "row_count": 908,
+      "output_jsonl": "common_exports_4_medicine\\retain_external_sc.jsonl",
+      "output_parquet": "common_exports_4_medicine\\retain_external_sc.parquet"
+    },
+    {
+      "dataset": "retain_internal_sc",
+      "row_count": 543,
+      "output_jsonl": "common_exports_4_medicine\\retain_internal_sc.jsonl",
+      "output_parquet": "common_exports_4_medicine\\retain_internal_sc.parquet"
+    },
+    {
+      "dataset": "retain_sc",
+      "row_count": 1451,
+      "output_jsonl": "common_exports_4_medicine\\retain_sc.jsonl",
+      "output_parquet": "common_exports_4_medicine\\retain_sc.parquet"
+    }
+  ]
+}
